@@ -12,6 +12,7 @@ from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from collections import OrderedDict
 
 if len(sys.argv) < 4:
     print("usage: python3 %s <genemarkES_out(gff)> <genome_fasta> <out_prefix>" % sys.argv[0])
@@ -26,7 +27,8 @@ if len(sys.argv) >= 5:
 else:
     codon = 1
 
-gene_site = {}
+gene_site = OrderedDict()
+gene_siteLists = OrderedDict()  # for gene gff
 gene_strand = {}
 with open(gff_file) as fh:
     for line in fh:
@@ -47,9 +49,28 @@ with open(gff_file) as fh:
             gene_id = re.findall(r"gene_id(\s|=)\"?(\w+)\"?;?", fields[-1])[0][1]
             if not gene_id:
                 gene_id = re.findall(r"transcript_id(\s|=)\"?(\w+)\"?;?", fields[-1])[0][1]
-            gene_site.setdefault(fields[0],{}).setdefault(gene_id,[])
+            gene_site.setdefault(fields[0],OrderedDict()).setdefault(gene_id,[])
+            gene_siteLists.setdefault(fields[0], OrderedDict()).setdefault(gene_id, [])
             gene_site[fields[0]][gene_id].append((start,end,phase))
+            gene_siteLists[fields[0]][gene_id].append(int(start))
+            gene_siteLists[fields[0]][gene_id].append(int(end))
             gene_strand.setdefault(fields[0],{}).setdefault(gene_id, strand)
+
+
+# make gene gff
+with open(output + '.gff', 'w') as outfh:
+    outfh.write("##gff-version  3\n")
+    for contig_id in gene_siteLists:
+        number = 1
+        for g_id in gene_siteLists[contig_id]:
+            gene_siteLists[contig_id][g_id].sort()
+            cds_id = contig_id + "_gene" + str(number)
+            start = str(gene_siteLists[contig_id][g_id][0])
+            end = str(gene_siteLists[contig_id][g_id][-1])
+            strand = gene_strand[contig_id][g_id]
+            outfh.write("\t".join([contig_id,"GeneMark.hmm","gene",start,end,".",strand,".","ID="+cds_id+";locus_tag="+cds_id]))
+            outfh.write("\n")
+            number += 1
 
 
 fasta_hash = {}
@@ -58,10 +79,10 @@ for rec in SeqIO.parse(genome, 'fasta'):
 
 output_fh = open(output + ".fnn", 'w')
 output_fh2 = open(output + ".faa", 'w')
-for contig_id in sorted(fasta_hash.keys()):
-    if contig_id in gene_site:
+for contig_id in gene_site:
+    if contig_id in fasta_hash:
         number = 1
-        for gene_id in sorted(gene_site[contig_id].keys()):
+        for gene_id in gene_site[contig_id]:
             gene_str = ""
             protein_str = ""
             for s,e,p in gene_site[contig_id][gene_id]:
@@ -93,6 +114,8 @@ for contig_id in sorted(fasta_hash.keys()):
             #SeqIO.write(protein_record, output_fh2, 'fasta')
 
             number += 1
+    else:
+        sys.stderr.write("Warning: %s isn't in genome fasta.\n" % contig_id)
 
 output_fh2.close()
 output_fh.close()
