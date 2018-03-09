@@ -4,8 +4,9 @@ Tools for taking GeneMarkES output(gff format) and pulling out the relevant sequ
 
 Will generate 2 files about gene:
 
-+ out_prefix.fnn (nuc)
++ out_prefix.fnn (nucl)
 + out_prefix.faa (prot)
++ out_prefix.gff (only gene info)
 
 
 # Installation
