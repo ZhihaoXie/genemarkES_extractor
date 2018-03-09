@@ -2,7 +2,7 @@
 
 Tools for taking GeneMarkES output(gff format) and pulling out the relevant sequences from the original fasta file. 
 
-Will generate 2 files about gene:
+Will generate 3 files about gene:
 
 + out_prefix.fnn (nucl)
 + out_prefix.faa (prot)
